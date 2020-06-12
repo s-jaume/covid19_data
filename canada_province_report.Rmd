@@ -1,0 +1,68 @@
+---
+title: "Canadian Data by Province"
+author: "Sergio Jaume"
+date: "6/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(covid19.analytics)
+library(tidyverse)
+library(ggplot2)
+
+#readme: https://cran.r-project.org/web/packages/covid19.analytics/readme/README.html
+df <- covid19.data()
+#str(df)
+```
+
+The purpose of this document is to create a stacked bar chart for each Canadian province seperated by active cases, recovered, then deaths
+
+Note: the data does not including Nunavut
+```{r clean_data, include=FALSE}
+#clean data table
+canada_tab <- df %>% filter(Country_Region == "Canada", Province_State != "Diamond Princess", Province_State != "Grand Princess") %>%
+  select("Province_State", "Confirmed", "Deaths", "Recovered", "Active")
+```
+
+```{r organize, include=FALSE}
+#organize data into col: Type, Province, Value
+province <- c(rep(canada_tab$Province_State, each = 3))
+type <- c(rep(c("active", "recovered", "deaths"), 12))
+value <- c()
+for (i in 1:12){
+  #Divide by 1000
+  value <- append(value, c(canada_tab$Active[i], canada_tab$Recovered[i], canada_tab$Deaths[i])/1000)
+}
+can_data <- data.frame(province, type, value)
+```
+
+
+```{r make_plot, include=FALSE}
+#plot stacked, rotate x-axis, organize by value
+#the reorder fn orders the x axis according to the sum bar height
+#Note: without sum, it takes the average value of active, death, recovered
+plot <- can_data %>% ggplot(aes(fill = type, reorder(province, value, sum), y = value)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "COVID-19 Tracking - Canada", 
+       subtitle = "Last updated 06-12-2020",
+       x = "Province Name", 
+       y = "Total Number of People in Thousands",
+       caption = "Source: John Hopkins University (https://github.com/CSSEGISandData/COVID-19)")
+```
+
+## Plot by Province
+Below shows the current amount of confirmed cases parsed by type:
+```{r pressure, echo=FALSE}
+#Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+plot
+```
+
+## Raw Data
+Below is the total confirmed cases in Canada followed by the raw data for the plot:
+```{r total, include=TRUE}
+#Number of people ever infected
+sum(can_data$value)*1000
+can_data
+```
